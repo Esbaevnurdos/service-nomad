@@ -12,20 +12,17 @@ class AuthController extends Controller
     public function login(Request $request) {
         $request->validate([
             'name' => 'required|string',
-            'phone' => 'required|string', // Removed 'unique:users' because updateOrCreate() handles it
+            'phone' => 'required|string', 
         ]);
     
-        // Generate OTP
         $otp = rand(100000, 999999);
         $expiresAt = Carbon::now()->addMinutes(5);
 
-        // Create or Update User
         $user = User::updateOrCreate(
             ['phone' => $request->phone],
             ['name' => $request->name, 'otp' => $otp, 'otp_expires_at' => $expiresAt]
         );
 
-        // Send OTP via SMS
         $this->sendSms($request->phone, "Your OTP is: $otp");
 
         return response()->json(['message' => 'OTP sent successfully']);
@@ -58,18 +55,15 @@ public function verifyOtp(Request $request) {
 
     $exampleOtp = '5022';
 
-    // Find user by phone and ensure OTP is not expired
     $user = User::where('phone', $request->phone)
                 // ->where
                 ->where('otp_expires_at', '>=', now())
                 ->first();
 
-    // Check if OTP is valid (either the actual OTP or the example OTP)
     if (!$user || ($user->otp != $request->otp && $request->otp != $exampleOtp)) {
         return response()->json(['error' => 'Invalid or expired OTP'], 401);
     }
 
-    // Clear OTP after successful verification
     $user->update(['otp' => null, 'otp_expires_at' => null]);
 
     return response()->json(data: ['message' => 'OTP verified successfully']);
