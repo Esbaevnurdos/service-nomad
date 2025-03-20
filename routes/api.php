@@ -15,4 +15,9 @@ Route::post('/auth/logout', [AuthController::class, 'logout']);
 
 Route::get('/rides/estimate', [RideController::class, 'estimateRide']);
 
+Route::post('/rides/create', [RideController::class, 'createOrder']);
 
+Route::post('/rides/{id}/accept', [RideController::class, 'acceptOrder']);
+Route::post('/rides/{id}/cancel', [RideController::class, 'cancelOrder']);
+Route::post('/rides/{id}/complete', [RideController::class, 'completeOrder']);
+Route::get('/rides/{id}/active', [RideController::class, 'getActiveOrder']);
