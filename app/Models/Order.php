@@ -34,4 +34,9 @@ class Order extends Model
     {
         return $this->belongsTo(User::class, 'driver_id')->withDefault();
     }
+
+    //     public function notifications()
+    // {
+    //     return $this->hasMany(Notification::class);
+    // }
 }
