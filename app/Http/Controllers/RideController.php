@@ -56,16 +56,12 @@ class RideController extends Controller
             return response()->json(['error' => 'You already have a pending ride'], 400);
         }
 
-        $details = $this->getRideDetails(
-            $request->pickup_lat,
-            $request->pickup_lng,
-            $request->dropoff_lat,
-            $request->dropoff_lng
-        );
-
-        if ($details['error']) {
-            return response()->json(['error' => $details['error']], 400);
-        }
+$details = $this->getRideDetails(
+    $request->pickup_lat,
+    $request->pickup_lng,
+    $request->dropoff_lat,
+    $request->dropoff_lng
+);
 
         $nearbyDrivers = $this->getNearbyDrivers($request->pickup_lat, $request->pickup_lng );
         if ($nearbyDrivers->isEmpty()) {
@@ -73,27 +69,29 @@ class RideController extends Controller
         }
 
         $passenger->update([
-            'pickup_lat' => $request->pickup_lat,
-            'pickup_lng' => $request->pickup_lng,
+        'latitude' => $request->pickup_lat,
+        'longitude' => $request->pickup_lng,
         ]);
 
-        $order = Order::create([
-            'passenger_id' => $passenger->id,
-            'pickup_lat' => $request->pickup_lat,
-            'pickup_lng' => $request->pickup_lng,
-            'dropoff_lat' => $request->dropoff_lat,
-            'dropoff_lng' => $request->dropoff_lng,
-            'distance_km' => $details['distance'],
-            'duration_min' => $details['duration'],
-            'fare' => $details['fare'],
-            'status' => 'pending',
-            'passenger_phone' => $passenger->phone,
-        ]);
+
+$order = Order::create([
+    'passenger_id' => $passenger->id,
+    'pickup_lat' => $request->pickup_lat,
+    'pickup_lng' => $request->pickup_lng,
+    'dropoff_lat' => $request->dropoff_lat,
+    'dropoff_lng' => $request->dropoff_lng,
+    'distance_km' => $details['distance'],
+    'duration_min' => $details['duration'],
+    'fare' => $details['fare'],
+    'status' => 'pending',
+    'passenger_phone' => $passenger->phone,
+]);
+
         
-            $this->notificationToDrivers($order);
+            // $this->notificationToDrivers($order);
 
 
-        return response()->json(['message' => 'Order created successfully', 'order' => $order], 201);
+        return response()->json(['message' => 'Order created successfully', 'order' => $order, 'nearby_drivers' => $nearbyDrivers], 201);
     }
 
     private function getRideDetails($pickupLat, $pickupLng, $dropoffLat, $dropoffLng)
@@ -114,9 +112,11 @@ class RideController extends Controller
 
         $data = $response->json();
 
-        if (empty($data['rows'][0]['elements'][0]['distance']['value'])) {
-            return ['error' => 'Unable to calculate distance'];
-        }
+if (!isset($data['rows'][0]['elements'][0]['distance']['value'])) {
+    return ['error' => 'Unable to calculate distance. Please try again.'];
+}
+
+
 
         $distance = $data['rows'][0]['elements'][0]['distance']['value'] / 1000;
         $duration = $data['rows'][0]['elements'][0]['duration']['value'] / 60;
@@ -143,7 +143,7 @@ class RideController extends Controller
             'driver_id' => 'required|exists:users,id',
         ]);
 
-        $order = Order::findorFail($orderId);
+        $order = Order::findOrFail($orderId);
 
         if ($order->status !== 'pending') {
             return response()->json(['error' => 'Order is not available for acceptance'], 400);
@@ -159,17 +159,29 @@ class RideController extends Controller
     //     return response()->json(['error' => 'Driver location not available'], 400);
     // }
 
-        if (!$driver->is_available || $driverDetails->status !== 'active') {
+       if (!$driver->is_available || $driverDetails->status !== 'active') {
         return response()->json(['error' => 'Driver is not available for acceptance'], 400);
     }
 
-    $rideDetails = $this->getRideDetails(
-        $driver->latitude, $driver->longitude,
-        $order->pickup_lat, $order->pickup_lng
-    );
-    if ($rideDetails['error']) {
-        return response()->json(['error' => $rideDetails['error']], 500);
-    }
+$rideDetails = $this->getRideDetails(
+    $driver->latitude, $driver->longitude,
+    $order->pickup_lat, $order->pickup_lng
+) ?? [];
+
+// if (!is_array($rideDetails)) {
+//     return response()->json(['error' => 'Invalid ride details response'], 500);
+// }
+
+if (isset($rideDetails['error'])) {
+    return response()->json(['error' => $rideDetails['error']], 400);
+}
+
+
+
+    if (!$driver->latitude || !$driver->longitude || !$driverDetails) {
+    return response()->json(['error' => 'Driver location not available'], 400);
+}
+
 
         $order->update([
             'driver_id' => $driver->id,
@@ -180,7 +192,7 @@ class RideController extends Controller
         $driverDetails->update(['status' => 'in_ride']);
         $driver->update(['is_available' => false]);
 
-        $this->sendNotification($order->passenger_phone, "Driver is on the way! {$rideDetails['duration']} minutes.");
+        // $this->sendNotification($order->passenger_phone, "Driver is on the way! {$rideDetails['duration']} minutes.");
 
         return response()->json([
             'message' => 'Order accepted successfully',
@@ -189,6 +201,7 @@ class RideController extends Controller
             'driver_phone' => $driver->phone,
             'driver_id' => $driver->id,
             'minutes' => $rideDetails['duration'],
+            'notification' => "Driver is on the way! {$rideDetails['duration']} minutes."
         ]);
     }
 
@@ -200,7 +213,6 @@ public function cancelOrder(Request $request, $orderId) {
         return response()->json(['error' => 'Order cannot be canceled'], 400);
     }
 
-    // If a driver is assigned, reset their availability
     if ($order->driver_id) {
         $driver = User::find($order->driver_id);
         if ($driver) {
@@ -212,10 +224,10 @@ public function cancelOrder(Request $request, $orderId) {
     $order->update(['status' => 'canceled']);
     Log::info("Order #{$order->id} canceled successfully.");
 
-    $this->notificationToPassenger($order->passenger_phone, "Your ride has been canceled.");
-    if ($order->driver_phone) {
-        $this->notificationToDriver($order->driver_phone, "The ride has been canceled.");
-    }
+    // $this->notificationToPassenger($order->passenger_phone, "Your ride has been canceled.");
+    // if ($order->driver_phone) {
+    //     $this->notificationToDriver($order->driver_phone, "The ride has been canceled.");
+    // }
 
     return response()->json(['message' => 'Order canceled successfully', 'order' => $order]);
 }
@@ -227,7 +239,6 @@ public function completeOrder($orderId) {
         return response()->json(['error' => 'Only active orders can be completed'], 400);
     }
 
-    // Update driver status if applicable
     if ($order->driver_id) {
         $driver = User::find($order->driver_id);
         if ($driver) {
@@ -239,8 +250,8 @@ public function completeOrder($orderId) {
     $order->update(['status' => 'completed']);
     Log::info("Order #{$order->id} completed successfully.");
 
-    $this->notificationToPassenger($order->passenger_phone, "Your ride is complete. Thank you!");
-    $this->notificationToDriver($order->driver_phone, "Ride completed successfully.");
+    // $this->notificationToPassenger($order->passenger_phone, "Your ride is complete. Thank you!");
+    // $this->notificationToDriver($order->driver_phone, "Ride completed successfully.");
 
     return response()->json(['message' => 'Order completed successfully', 'order' => $order]);
 }
@@ -283,49 +294,109 @@ public function getActiveOrder($orderId) {
 // }
 
 
-private function sendNotification($phoneNumber, $message) {
-    $response = Http::post(env('NOTIFICATION_API_URL'), [
-        'to' => $phoneNumber,
-        'message' => $message,
-        'api_key' => env('NOTIFICATION_API_KEY'),
-    ]);
+// private function sendNotification($phoneNumber, $message) {
+//     $response = Http::post(env('NOTIFICATION_API_URL'), [
+//         'to' => $phoneNumber,
+//         'message' => $message,
+//         'api_key' => env('NOTIFICATION_API_KEY'),
+//     ]);
 
-    if ($response->failed()) {
-        Log::error('Notification failed', ['phone' => $phoneNumber, 'message' => $message, 'response' => $response->body()]);
-    }
+//     if ($response->failed()) {
+//         Log::error('Notification failed', [
+//             'phone' => $phoneNumber, 
+//             'message' => $message, 
+//             'response' => $response->body()
+//         ]);
+//         return false; // Indicate failure
+//     }
+
+//     return true; // Indicate success
+// }
+
+//  public function notificationToPassenger($phoneNumber, $message)
+//     {
+//         $this->sendNotification($phoneNumber, $message);
+//     }
+
+//     public function notificationToDriver($phoneNumber, $message)
+//     {
+//         $this->sendNotification($phoneNumber, $message);
+//     }
+
+// public function notificationToDrivers(Order $order, $message = null)
+// {
+//     $message = $message ?? "New ride request available. Pickup Location: ({$order->pickup_lat}, {$order->pickup_lng})";
+
+//     $nearbyDrivers = $this->getNearbyDrivers($order->pickup_lat, $order->pickup_lng);
+
+//     if ($nearbyDrivers->isEmpty()) {
+//         Log::info('No drivers available nearby for order ID: ' . $order->id);
+//         return; // Stop execution if no drivers are found
+//     }
+
+//     foreach ($nearbyDrivers as $driver) {
+//         $this->notificationToDriver($driver->phone, $message);
+//     }
+// }
+
+
+private function getNearbyDrivers($lat, $lng)
+{
+    return User::where('role', 'driver')
+        ->where('is_available', true)
+        ->whereBetween('latitude', [$lat - 0.05, $lat + 0.05])
+        ->whereBetween('longitude', [$lng - 0.05, $lng + 0.05])
+        ->get() ?? collect([]); 
 }
 
- public function notificationToPassenger($phoneNumber, $message)
-    {
-        $this->sendNotification($phoneNumber, $message);
+
+    public function updateDriverLocation(Request $request) {
+        $request->validate([
+            'driver_id' => 'required|exists:users,id',
+            'pickup_lat' => 'required|numeric',
+            'pickup_lng' => 'required|numeric',
+        ]);
+
+            $user = User::where('id', $request->driver_id)->where('role', 'driver')->first();
+    if (!$user) {
+        return response()->json(['error' => 'User is not a driver'], 403);
     }
 
-    public function notificationToDriver($phoneNumber, $message)
-    {
-        $this->sendNotification($phoneNumber, $message);
+        $driver = Driver::where('user_id', $request->driver_id)->firstOrFail();
+        $driver->update([
+            'pickup_lat' => $request->pickup_lat,
+            'pickup_lng' => $request->pickup_lng
+        ]);
+
+
+         $user->update([
+        'latitude' => $request->pickup_lat,
+        'longitude' => $request->pickup_lng,
+        'is_available' => true,
+    ]);
+
+        return response()->json(['message' => 'Location updates succesfully']);
     }
 
-        public function notificationToDrivers(Order $order, $message = null)
-    {
-        $message = $message ?? "New ride request available. Pickup Location: ({$order->pickup_lat}, {$order->pickup_lng})";
+    // public function 
 
-        $nearbyDrivers = $this->getNearbyDrivers($order->pickup_lat, $order->pickup_lng);
+    public function updateAvailability(Request $request)
+{
+    $request->validate([
+        'driver_id' => 'required|exists:users,id',
+        'is_available' => 'required|boolean',
+    ]);
 
-        foreach ($nearbyDrivers as $driver) {
-            $this->notificationToDriver($driver->phone, $message);
-        }
-    }
+    $driver = User::where('id', $request->driver_id)
+                  ->where('role', 'driver')
+                  ->firstOrFail();
 
-       private function getNearbyDrivers($lat, $lng)
-    {
-        return User::where('role', 'driver')
-            ->where('is_available', true)
-            ->where('latitude', '!=', null)
-            ->where('longitude', '!=', null)
-            ->whereRaw("ST_Distance_Sphere(point(longitude, latitude), point(?, ?)) <= 5000", [
-                $lng, $lat
-            ])->get();
-    }
+    $driver->update([
+        'is_available' => $request->is_available,
+    ]);
+
+    return response()->json(['message' => 'Availability updated successfully']);
+}
 
 
 }

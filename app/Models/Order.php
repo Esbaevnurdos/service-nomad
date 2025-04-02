@@ -9,19 +9,12 @@ class Order extends Model
 {
     use HasFactory;
 
-    protected $fillable = [
-        'passenger_id',
-        'driver_id',
-        'passenger_phone',
-        'pickup_lat',
-        'pickup_lng',
-        'dropoff_lat',
-        'dropoff_lng',
-        'distance_km',
-        'duration_min',
-        'fare',
-        'status',
-    ];
+protected $fillable = [
+    'passenger_id', 'pickup_lat', 'pickup_lng',
+    'dropoff_lat', 'dropoff_lng', 'distance_km',
+    'duration_min', 'fare', 'status', 'passenger_phone', 'driver_id', 'driver_phone'
+];
+
 
     // Relationship with the passenger (User)
     public function passenger()

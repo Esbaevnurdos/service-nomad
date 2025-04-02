@@ -20,7 +20,7 @@ Schema::create('users', function (Blueprint $table) {
     $table->timestamp('otp_expires_at')->nullable(); // OTP expiry time (Optional)
     $table->decimal('latitude', 10, 7)->nullable(); // Latitude (Optional)
     $table->decimal('longitude', 10, 7)->nullable(); // Longitude (Optional)
-    $table->boolean('is_available')->default(false); // Availability (Default: false)
+    $table->boolean('is_available')->default(true); // Availability (Default: false)
     $table->timestamps(); // created_at & updated_at
 });
 

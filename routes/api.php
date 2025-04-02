@@ -4,6 +4,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\RideController;
+use App\Http\Controllers\FirebaseNotificationController;
+
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -21,3 +23,8 @@ Route::post('/rides/{id}/accept', [RideController::class, 'acceptOrder']);
 Route::post('/rides/{id}/cancel', [RideController::class, 'cancelOrder']);
 Route::post('/rides/{id}/complete', [RideController::class, 'completeOrder']);
 Route::get('/rides/{id}/active', [RideController::class, 'getActiveOrder']);
+
+Route::post('/driver/update-location', [RideController::class, 'updateDriverLocation']);
+
+
+Route::post('/send-notification', [FirebaseNotificationController::class, 'sendPushNotification']);

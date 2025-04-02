@@ -17,14 +17,12 @@ class AuthController extends Controller
 {
     public function login(Request $request)
 {
-    // Validate input
     $request->validate([
         'name' => 'required|string|max:255',
         'phone' => 'required|string|regex:/^\+?\d{10,15}$/',
         'role' => 'required|in:passenger,driver,admin'
     ]);
 
-    // Generate OTP and expiration time
     $otp = $this->generateOtp();
     $expiresAt = Carbon::now()->addMinutes(5);
 
@@ -48,10 +46,8 @@ class AuthController extends Controller
         }
 
 
-        // Ensure role-specific logic is applied
         $this->ensureRoleModel($user);
 
-        // Send OTP via SMS
         $this->sendSms($user->phone, "Your OTP is: $otp");
 
         return response()->json(['message' => 'OTP sent successfully.']);
@@ -91,13 +87,11 @@ class AuthController extends Controller
     $token = env('TWILIO_AUTH_TOKEN');
     $from = env('TWILIO_PHONE_NUMBER');
 
-    // Ensure Twilio credentials are set
     if (!$sid || !$token || !$from) {
         logger()->error('Twilio credentials are missing.');
         throw new \Exception('SMS service is not configured.');
     }
 
-    // Validate phone number format (basic check)
     if (!preg_match('/^\+?\d{10,15}$/', $phone)) {
         logger()->warning("Invalid phone number: $phone");
         throw new \Exception('Invalid phone number format.');
