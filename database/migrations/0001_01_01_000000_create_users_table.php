@@ -21,6 +21,7 @@ Schema::create('users', function (Blueprint $table) {
     $table->decimal('latitude', 10, 7)->nullable(); // Latitude (Optional)
     $table->decimal('longitude', 10, 7)->nullable(); // Longitude (Optional)
     $table->boolean('is_available')->default(true); // Availability (Default: false)
+    $table->string('fcm_token')->nullable();
     $table->timestamps(); // created_at & updated_at
 });
 

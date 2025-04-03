@@ -21,6 +21,7 @@ class User extends Authenticatable
         'latitude',
         'longitude',
         'is_available',
+        'fcm_token'
 
     ];
 

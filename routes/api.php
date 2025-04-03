@@ -5,6 +5,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\RideController;
 use App\Http\Controllers\FirebaseNotificationController;
+use App\Models\User;
+
 
 
 Route::get('/user', function (Request $request) {
@@ -27,4 +29,18 @@ Route::get('/rides/{id}/active', [RideController::class, 'getActiveOrder']);
 Route::post('/driver/update-location', [RideController::class, 'updateDriverLocation']);
 
 
-Route::post('/send-notification', [FirebaseNotificationController::class, 'sendPushNotification']);
+Route::post('/send-user-notification', [FirebaseNotificationController::class, 'sendNotificationToUser']);
+
+
+Route::post('/save-fcm-token', function (Request $request) {
+    $request->validate([
+        'user_id' => 'required|exists:users,id',
+        'fcm_token' => 'required'
+    ]);
+
+    $user = User::find($request->user_id);
+    $user->fcm_token = $request->fcm_token;
+    $user->save();
+
+    return response()->json(['message' => 'FCM token saved successfully']);
+});
