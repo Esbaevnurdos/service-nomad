@@ -44,3 +44,14 @@ Route::post('/save-fcm-token', function (Request $request) {
 
     return response()->json(['message' => 'FCM token saved successfully']);
 });
+
+
+
+
+/////////////////////////////////////
+Route::post('/send-notification', [FirebaseNotificationController::class, 'send']);
+
+
+Route::get('/ping', function () {
+    return response()->json(['message' => 'pong']);
+});

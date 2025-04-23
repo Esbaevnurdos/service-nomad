@@ -13,6 +13,13 @@ use App\Models\Driver;
 
 class RideController extends Controller
 {
+
+    protected $firebaseNotificationController;
+
+    public function __construct(FirebaseNotificationController $firebaseNotificationController)
+    {
+        $this->firebaseNotificationController = $firebaseNotificationController;
+    }
     public function estimateRide(Request $request)
     {
         $request->validate([
@@ -88,10 +95,13 @@ $order = Order::create([
 ]);
 
         
-            // $this->notificationToDrivers($order);
+$notificationResponse = $this->firebaseNotificationController->notificationToDrivers(new Request([
+    'title' => 'New Ride Request',
+    'body' => 'A new ride request is available. Accept it now!',
+]));
 
 
-        return response()->json(['message' => 'Order created successfully', 'order' => $order, 'nearby_drivers' => $nearbyDrivers], 201);
+        return response()->json(['message' => 'Order created successfully', 'order' => $order, 'nearby_drivers' => $nearbyDrivers, 'notification_status' => $notificationResponse->getData()->message ?? 'Notification status unknown'], 201);
     }
 
     private function getRideDetails($pickupLat, $pickupLng, $dropoffLat, $dropoffLng)
@@ -193,6 +203,11 @@ if (isset($rideDetails['error'])) {
         $driver->update(['is_available' => false]);
 
         // $this->sendNotification($order->passenger_phone, "Driver is on the way! {$rideDetails['duration']} minutes.");
+          $notificationResponse = $this->firebaseNotificationController->notificationToPassenger(new Request([
+            'passenger_id' => $order->passenger_id,
+            'title' => 'Ride Accepted',
+            'body' => "A driver has accepted your ride and is on the way.{$rideDetails['duration']} minutes.",
+        ]));
 
         return response()->json([
             'message' => 'Order accepted successfully',
@@ -201,7 +216,8 @@ if (isset($rideDetails['error'])) {
             'driver_phone' => $driver->phone,
             'driver_id' => $driver->id,
             'minutes' => $rideDetails['duration'],
-            'notification' => "Driver is on the way! {$rideDetails['duration']} minutes."
+            'notification' => "Driver is on the way! {$rideDetails['duration']} minutes.",
+            'notification_status' => $notificationResponse->getData()->message ?? 'Notification status unknown'
         ]);
     }
 
@@ -229,7 +245,13 @@ public function cancelOrder(Request $request, $orderId) {
     //     $this->notificationToDriver($order->driver_phone, "The ride has been canceled.");
     // }
 
-    return response()->json(['message' => 'Order canceled successfully', 'order' => $order]);
+            $notificationResponse = $this->firebaseNotificationController->notificationToPassenger(new Request([
+            'passenger_id' => $order->passenger_id,
+            'title' => 'Ride Canceled',
+            'body' => 'Your ride has been canceled.',
+        ]));
+
+    return response()->json(['message' => 'Order canceled successfully', 'order' => $order, 'notification_status' => $notificationResponse->getData()->message ?? 'Notification status unknown']);
 }
 
 public function completeOrder($orderId) {
@@ -250,10 +272,15 @@ public function completeOrder($orderId) {
     $order->update(['status' => 'completed']);
     Log::info("Order #{$order->id} completed successfully.");
 
+            $notificationResponse = $this->firebaseNotificationController->notificationToPassenger(new Request([
+            'passenger_id' => $order->passenger_id,
+            'title' => 'Ride completed',
+            'body' => 'Your ride has been completed.',
+        ]));
     // $this->notificationToPassenger($order->passenger_phone, "Your ride is complete. Thank you!");
     // $this->notificationToDriver($order->driver_phone, "Ride completed successfully.");
 
-    return response()->json(['message' => 'Order completed successfully', 'order' => $order]);
+    return response()->json(['message' => 'Order completed successfully', 'order' => $order, 'notification_status' => $notificationResponse->getData()->message ?? 'Notification status unknown']);
 }
 
 public function getActiveOrder($orderId) {

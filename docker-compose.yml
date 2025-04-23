@@ -1,0 +1,63 @@
+version: "3.8"
+
+services:
+    app:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: laravel_app
+        restart: unless-stopped
+        volumes:
+            - .:/var/www
+        working_dir: /var/www
+        networks:
+            - laravel
+        depends_on:
+            - db
+        env_file:
+            - .env
+        environment:
+            DB_HOST: db
+            DB_PORT: 3306
+            DB_DATABASE: ride-back
+            DB_USERNAME: nomad-service
+            DB_PASSWORD: nomad-service
+            TWILIO_SID: AC56ba101dc123e81a7f81913e8830bfa5
+            TWILIO_AUTH_TOKEN: b804f35dbbf819989aac534e63b70ae4
+            TWILIO_PHONE_NUMBER: "+19207811426"
+            GOOGLE_MAPS_API_KEY: AIzaSyDG0lfZ-Nx5U9SzPi16Octv4Y9b7FvcfRo
+            FIREBASE_CREDENTIALS: storage/firebase/firebase-credentials.json
+    webserver:
+        image: nginx:alpine
+        container_name: nginx_web
+        restart: unless-stopped
+        ports:
+            - "8000:80"
+        volumes:
+            - .:/var/www
+            - ./nginx/conf.d:/etc/nginx/conf.d
+
+        depends_on:
+            - app
+        networks:
+            - laravel
+
+    db:
+        image: mysql:8.0
+        container_name: mysql_db
+        restart: unless-stopped
+        ports:
+            - "3307:3306"
+        volumes:
+            - dbdata:/var/lib/mysql
+        environment:
+            MYSQL_ROOT_PASSWORD: nomad-service
+            MYSQL_DATABASE: ride-back
+        networks:
+            - laravel
+
+networks:
+    laravel:
+
+volumes:
+    dbdata:

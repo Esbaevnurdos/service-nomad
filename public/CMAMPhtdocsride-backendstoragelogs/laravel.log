@@ -1,0 +1,2 @@
+[2025-04-17 15:20:07] local.ERROR: Error during login: SQLSTATE[HY000] [2002] No such file or directory (Connection: mysql, SQL: select * from `users` where `phone` = +77767742354 limit 1)  
+[2025-04-17 15:20:46] local.ERROR: Error during login: SQLSTATE[HY000] [2002] No such file or directory (Connection: mysql, SQL: select * from `users` where `phone` = +77766393165 limit 1)  

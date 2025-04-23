@@ -39,6 +39,7 @@ class AuthController extends Controller
         } else {
             $user = User::create(
             ['name' => $request->name, 
+            'phone' => $request->phone,
             'otp' => $otp,
             'otp_expires_at' => $expiresAt,
             'role' => $request->role]
